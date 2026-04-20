@@ -117,8 +117,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);-we
 footer{padding:1.25rem 1rem;font-size:11px;color:var(--text-faint);text-align:center;letter-spacing:0.04em}
 
 @media(min-width:600px){
-  .bento{grid-template-columns:1fr 1fr 1fr}
-  .card-wide{grid-column:span 3}
+  .bento{grid-template-columns:1fr 1fr}
+  .card-wide{grid-column:span 2}
   .bento-section{padding:2rem 1.5rem 0.5rem}
 }
 </style>
@@ -175,8 +175,7 @@ footer{padding:1.25rem 1rem;font-size:11px;color:var(--text-faint);text-align:ce
 <!-- BENTO below -->
 <div class="bento-section">
   <div class="wordmark">
-    <div class="wordmark-name">Ozbolat Lab</div>
-    <div class="wordmark-sub">Penn State &mdash; Bioprinting &amp; Biofabrication</div>
+    <img src="ozbolat_lab_logo.png" alt="Ozbolat Lab" style="height:38px;width:auto;mix-blend-mode:screen;display:block;">
   </div>
 
   <div class="bento">
@@ -284,9 +283,7 @@ function closeSheet() {
 document.querySelectorAll('.hotspot').forEach(el => {
   el.addEventListener('click', e => {
     e.preventDefault();
-    document.querySelectorAll('.hotspot').forEach(h => h.classList.remove('tapped'));
-    el.classList.add('tapped');
-    openSheet(el.dataset);
+    if (el.dataset.url) window.open(el.dataset.url, '_blank');
   });
 });
 backdrop.addEventListener('click', closeSheet);
