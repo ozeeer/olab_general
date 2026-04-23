@@ -60,6 +60,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);-we
 .card:nth-child(3){animation-delay:.15s}.card:nth-child(4){animation-delay:.2s}
 .card:nth-child(5){animation-delay:.25s}.card:nth-child(6){animation-delay:.3s}
 .card:nth-child(7){animation-delay:.35s}.card:nth-child(8){animation-delay:.4s}
+.card:nth-child(9){animation-delay:.45s}
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0;opacity:0;transition:opacity 0.15s}
@@ -69,6 +70,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);-we
 .card-packages::before,.card-cold::before{background:var(--blue)}
 .card-chem::before,.card-pump::before{background:var(--amber)}
 .card-inventory::before{background:var(--coral)}
+.card-requests::before{background:var(--amber)}
 
 .card-wide{grid-column:span 2;flex-direction:row;align-items:flex-start;gap:1rem}
 .card-wide .card-body{flex:1;display:flex;flex-direction:column}
@@ -202,14 +204,14 @@ footer{padding:1.25rem 1rem;font-size:11px;color:var(--text-faint);text-align:ce
       <div class="card-footer"><span class="card-tag">github pages</span><span class="arrow">&#8594;</span></div>
     </a>
 
-    <a class="card card-website" href="https://sites.esm.psu.edu/~ito1/" target="_blank">
-      <div class="card-icon icon-slate">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+    <a class="card card-requests" href="https://ozeeer.github.io/olab_requests/" target="_blank">
+      <div class="card-icon icon-amber">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
       </div>
-      <span class="chip chip-slate"><span class="chip-dot"></span>External</span>
-      <div class="card-title">Lab Website</div>
-      <div class="card-desc">Official Penn State research site.</div>
-      <div class="card-footer"><span class="card-tag">psu.edu</span><span class="arrow">&#8594;</span></div>
+      <span class="chip chip-amber"><span class="chip-dot"></span>Lab tool</span>
+      <div class="card-title">Order Requests</div>
+      <div class="card-desc">Submit and track order requests.</div>
+      <div class="card-footer"><span class="card-tag">github pages</span><span class="arrow">&#8594;</span></div>
     </a>
 
     <a class="card card-wide card-inventory" href="https://pennstateoffice365-my.sharepoint.com/personal/yoy5173_psu_edu/Lists/General%20Inventory%20%20Ozbolat%20Lab/AllItems.aspx?e=1FZbTN&sharingv2=true&fromShare=true&at=9&CT=1773841735065&OR=OWA-NT-Mail&CID=23a807f3-0f9a-42d0-9a99-4d559248cd5a" target="_blank">
@@ -242,6 +244,18 @@ footer{padding:1.25rem 1rem;font-size:11px;color:var(--text-faint);text-align:ce
       <div class="card-title">Chemical Inventory</div>
       <div class="card-desc">Reagents &amp; hazardous materials.</div>
       <div class="card-footer"><span class="card-tag">sharepoint</span><span class="arrow">&#8594;</span></div>
+    </a>
+
+    <a class="card card-wide card-website" href="https://sites.esm.psu.edu/~ito1/" target="_blank">
+      <div class="card-icon icon-slate">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+      </div>
+      <div class="card-body">
+        <span class="chip chip-slate"><span class="chip-dot"></span>External</span>
+        <div class="card-title">Lab Website</div>
+        <div class="card-desc">Official Ozbolat Lab research website at Penn State. Bioprinting &amp; Biofabrication.</div>
+        <div class="card-footer"><span class="card-tag">psu.edu</span><span class="arrow">&#8594;</span></div>
+      </div>
     </a>
 
   </div>
