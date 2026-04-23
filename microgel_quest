@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaibhav's Microgel Quest</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Press Start 2P', monospace;
+    overflow: hidden;
+  }
+
+  #gameWrapper {
+    position: relative;
+    width: 800px;
+  }
+
+  #hud {
+    background: #111118;
+    border: 3px solid #3a3a5c;
+    border-bottom: none;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 7px;
+    color: #c8c8ff;
+  }
+
+  #hud .avatar {
+    width: 36px; height: 36px;
+    border: 2px solid #5555aa;
+    image-rendering: pixelated;
+    background: #2a1a3a;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  #hud .title-block { flex: 1; }
+  #hud .title-block .name { color: #88ff44; font-size: 9px; letter-spacing: 1px; }
+  #hud .title-block .sub { color: #888; margin-top: 3px; }
+
+  .bar-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .bar-label { width: 20px; color: #aaa; }
+  .bar-bg { height: 8px; width: 100px; background: #222233; border: 1px solid #444; position: relative; }
+  .bar-fill { height: 100%; transition: width 0.3s; }
+  .hp-fill { background: linear-gradient(90deg, #ff4444, #ff8888); }
+  .xp-fill { background: linear-gradient(90deg, #44aaff, #88ddff); }
+  .coffee-fill { background: linear-gradient(90deg, #aa6622, #dd9944); }
+
+  .stat { text-align: center; }
+  .stat .val { color: #ffdd44; font-size: 9px; }
+  .stat .lbl { color: #666; font-size: 6px; margin-top: 2px; }
+
+  #gameCanvas {
+    display: block;
+    image-rendering: pixelated;
+    border-left: 3px solid #3a3a5c;
+    border-right: 3px solid #3a3a5c;
+    cursor: crosshair;
+  }
+
+  #bottomHud {
+    background: #111118;
+    border: 3px solid #3a3a5c;
+    border-top: 2px solid #222233;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 6px;
+    color: #888;
+  }
+
+  #messageBox {
+    flex: 1;
+    background: #0d0d1a;
+    border: 1px solid #333355;
+    padding: 4px 8px;
+    color: #aaffaa;
+    font-size: 6px;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+  }
+
+  .key-hint { 
+    background: #1a1a2e; border: 1px solid #444466;
+    padding: 3px 5px; color: #6688aa; white-space: nowrap;
+  }
+
+  #overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.88);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    font-family: 'Press Start 2P', monospace;
+  }
+
+  #overlay.hidden { display: none; }
+
+  .overlay-title {
+    font-size: 22px;
+    color: #88ff44;
+    text-shadow: 0 0 20px #44ff00, 3px 3px 0 #004400;
+    letter-spacing: 2px;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .overlay-sub {
+    font-size: 8px;
+    color: #6688bb;
+    margin-top: 10px;
+    text-align: center;
+    line-height: 2;
+  }
+
+  .overlay-btn {
+    margin-top: 24px;
+    padding: 12px 28px;
+    background: #1a3a1a;
+    border: 3px solid #44ff44;
+    color: #88ff44;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.1s;
+  }
+  .overlay-btn:hover { background: #2a5a2a; box-shadow: 0 0 15px #44ff44; }
+  .overlay-btn:active { transform: translateY(2px); }
+
+  .pixel-divider {
+    width: 300px; height: 2px;
+    background: repeating-linear-gradient(90deg, #333 0px, #333 4px, transparent 4px, transparent 8px);
+    margin: 16px auto;
+  }
+
+  .achievement-popup {
+    position: absolute;
+    top: 60px; right: 10px;
+    background: #1a1a2e;
+    border: 2px solid #ffdd44;
+    padding: 8px 12px;
+    font-size: 6px;
+    color: #ffdd44;
+    z-index: 20;
+    animation: popIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+    max-width: 180px;
+    line-height: 1.8;
+  }
+
+  @keyframes popIn { from { transform: scale(0.5) translateX(50px); opacity: 0; } to { transform: scale(1) translateX(0); opacity: 1; } }
+  @keyframes fadeOut { to { opacity: 0; transform: translateX(50px); } }
+
+  .boss-warning {
+    position: absolute;
+    top: 50%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 16px;
+    color: #ff4444;
+    text-shadow: 0 0 20px #ff0000;
+    z-index: 15;
+    animation: blink 0.3s steps(1) 6;
+    pointer-events: none;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+
+<div id="gameWrapper">
+  <div id="hud">
+    <div class="avatar">🧑‍🔬</div>
+    <div class="title-block">
+      <div class="name">VAIBHAV'S MICROGEL QUEST</div>
+      <div class="sub">BIOPRINT · SCIENCE · LEGEND</div>
+      <div class="bar-row">
+        <span class="bar-label" style="color:#ff6666">HP</span>
+        <div class="bar-bg"><div class="bar-fill hp-fill" id="hpBar" style="width:100%"></div></div>
+        <span id="hpText" style="color:#ff8888">100/100</span>
+      </div>
+    </div>
+    <div class="stat"><div class="val" id="levelText">09</div><div class="lbl">LVL</div></div>
+    <div>
+      <div class="bar-row">
+        <span class="bar-label" style="color:#44aaff">XP</span>
+        <div class="bar-bg"><div class="bar-fill xp-fill" id="xpBar" style="width:30%"></div></div>
+        <span id="xpText" style="color:#66bbff">300/1000</span>
+      </div>
+      <div class="bar-row" style="margin-top:6px">
+        <span class="bar-label" style="color:#aa6622">☕</span>
+        <div class="bar-bg"><div class="bar-fill coffee-fill" id="coffeeBar" style="width:75%"></div></div>
+        <span style="color:#cc8833">FUEL</span>
+      </div>
+    </div>
+    <div class="stat"><div class="val" id="gelText">0</div><div class="lbl">GELS</div></div>
+    <div class="stat"><div class="val" id="scoreText">0</div><div class="lbl">SCORE</div></div>
+  </div>
+
+  <canvas id="gameCanvas" width="800" height="480"></canvas>
+
+  <div id="bottomHud">
+    <div id="messageBox">⚗️ Welcome to the lab, Vaibhav! Craft gels. Defeat contaminations. BIOPRINT THE FUTURE.</div>
+    <div class="key-hint">WASD/ARROWS MOVE</div>
+    <div class="key-hint">SPACE SHOOT</div>
+    <div class="key-hint">Z CRAFT GEL</div>
+    <div class="key-hint">X BIOPRINT BLAST</div>
+  </div>
+
+  <div id="overlay">
+    <div class="overlay-title">VAIBHAV'S<br>MICROGEL QUEST</div>
+    <div style="font-size:28px;margin:10px">⚗️</div>
+    <div class="overlay-sub">BIOPRINT · SCIENCE · LEGEND<br><br>Defeat contaminations. Craft microgels.<br>Unlock the future of bioprinting.</div>
+    <div class="pixel-divider"></div>
+    <div style="font-size:7px;color:#556677;text-align:center;line-height:2">
+      WASD / ARROWS: Move &nbsp;|&nbsp; SPACE: Shoot<br>
+      Z: Craft Microgel &nbsp;|&nbsp; X: Bioprint Blast
+    </div>
+    <button class="overlay-btn" id="startBtn">▶ START QUEST</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+// ---- PALETTE ----
+const C = {
+  bg: '#0d0d1a', floor: '#14141f', wall: '#1a1a2e',
+  player: '#88ff44', playerCoat: '#eeeeff', playerSkin: '#c8a878',
+  gelBlue: '#44ddff', gelGlow: '#aaffff',
+  enemy1: '#ff4444', enemy2: '#ff8822', enemyGlow: '#ff2200',
+  boss: '#cc22cc', bossGlow: '#ff44ff',
+  bullet: '#ffff44', bulletGlow: '#ffdd00',
+  gelProjectile: '#44ffbb',
+  particle: '#ffffff',
+  labEquip: '#334455', labGlow: '#4488bb',
+  coffee: '#aa6622',
+  tile1: '#111120', tile2: '#13132a',
+};
+
+// ---- STATE ----
+let state = {
+  running: false,
+  player: { x: 400, y: 300, vx: 0, vy: 0, hp: 100, maxHp: 100, speed: 2.5, facing: 1, anim: 0, invincible: 0 },
+  bullets: [],
+  enemies: [],
+  particles: [],
+  pickups: [],
+  gels: 0,
+  xp: 300,
+  xpNeeded: 1000,
+  level: 9,
+  score: 0,
+  coffee: 75,
+  wave: 0,
+  waveTimer: 0,
+  bossActive: false,
+  boss: null,
+  shootCooldown: 0,
+  blastCooldown: 0,
+  craftCooldown: 0,
+  keys: {},
+  frame: 0,
+  message: '',
+  messageTimer: 0,
+  achievements: [],
+  achievementQueue: [],
+  reagents: 0, // collected from enemies
+};
+
+// ---- CONTROLS ----
+document.addEventListener('keydown', e => {
+  state.keys[e.code] = true;
+  if (!state.running) return;
+  if (e.code === 'KeyZ') craftGel();
+  if (e.code === 'KeyX') bioBlast();
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => { state.keys[e.code] = false; });
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+
+function startGame() {
+  document.getElementById('overlay').classList.add('hidden');
+  resetGame();
+  state.running = true;
+  spawnWave();
+  requestAnimationFrame(loop);
+}
+
+function resetGame() {
+  state.player = { x: 400, y: 280, vx: 0, vy: 0, hp: 100, maxHp: 100, speed: 2.5, facing: 1, anim: 0, invincible: 0 };
+  state.bullets = [];
+  state.enemies = [];
+  state.particles = [];
+  state.pickups = [];
+  state.gels = 0;
+  state.xp = 300;
+  state.xpNeeded = 1000;
+  state.level = 9;
+  state.score = 0;
+  state.coffee = 75;
+  state.wave = 0;
+  state.waveTimer = 0;
+  state.bossActive = false;
+  state.boss = null;
+  state.shootCooldown = 0;
+  state.blastCooldown = 0;
+  state.craftCooldown = 0;
+  state.frame = 0;
+  state.reagents = 0;
+}
+
+// ---- WAVES ----
+function spawnWave() {
+  state.wave++;
+  const count = 3 + state.wave * 2;
+  setMessage(`⚠ WAVE ${state.wave}: ${count} CONTAMINATIONS INCOMING!`);
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => spawnEnemy(state.wave), i * 400);
+  }
+  if (state.wave % 3 === 0) {
+    setTimeout(() => spawnBoss(), (count + 2) * 400);
+  }
+}
+
+function spawnEnemy(wave) {
+  const side = Math.floor(Math.random() * 4);
+  let x, y;
+  if (side === 0) { x = Math.random() * 800; y = -20; }
+  else if (side === 1) { x = 820; y = Math.random() * 480; }
+  else if (side === 2) { x = Math.random() * 800; y = 500; }
+  else { x = -20; y = Math.random() * 480; }
+  const type = wave > 4 ? (Math.random() < 0.3 ? 2 : 1) : 1;
+  state.enemies.push({
+    x, y, hp: type === 2 ? 40 : 20 + wave * 5, maxHp: type === 2 ? 40 : 20 + wave * 5,
+    speed: 0.8 + Math.random() * 0.5 + wave * 0.1,
+    type, anim: Math.random() * 100, size: type === 2 ? 18 : 14,
+    shootTimer: Math.random() * 120, dead: false
+  });
+}
+
+function spawnBoss() {
+  if (state.bossActive) return;
+  state.bossActive = true;
+  showBossWarning();
+  setTimeout(() => {
+    state.boss = {
+      x: 400, y: -50, hp: 200 + state.wave * 20, maxHp: 200 + state.wave * 20,
+      speed: 1.2, phase: 1, anim: 0, shootTimer: 0,
+      size: 32, pattern: 0, patternTimer: 0
+    };
+    setMessage(`💀 BOSS: MEGA CONTAMINATION CLUSTER! Lv.${state.wave * 2}`);
+  }, 2000);
+}
+
+function showBossWarning() {
+  const el = document.createElement('div');
+  el.className = 'boss-warning';
+  el.textContent = '⚠ BOSS INCOMING ⚠';
+  document.getElementById('gameWrapper').appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+}
+
+// ---- ACTIONS ----
+function craftGel() {
+  if (state.craftCooldown > 0) { setMessage('⏳ Gel crafting in cooldown...'); return; }
+  if (state.reagents < 3) { setMessage(`⚗️ Need 3 reagents! Have: ${state.reagents}`); return; }
+  state.reagents -= 3;
+  state.gels++;
+  state.craftCooldown = 180;
+  state.xp += 50;
+  spawnGelPickupEffect(state.player.x, state.player.y);
+  setMessage('✅ MICROGEL CRAFTED! +50 XP  +INFINITE RESPECT');
+  spawnAchievement('GEL CRAFTED! +50 XP');
+  checkLevelUp();
+}
+
+function bioBlast() {
+  if (state.blastCooldown > 0) { setMessage(`⏳ Bioprint blast recharging... (${Math.ceil(state.blastCooldown/60)}s)`); return; }
+  if (state.gels < 1) { setMessage('❌ Need a microgel to bioprint blast!'); return; }
+  state.gels--;
+  state.blastCooldown = 300;
+  // shoot 12 gel projectiles in a circle
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2;
+    state.bullets.push({
+      x: state.player.x, y: state.player.y,
+      vx: Math.cos(angle) * 5, vy: Math.sin(angle) * 5,
+      type: 'gel', dmg: 30, life: 80, size: 6
+    });
+  }
+  spawnExplosion(state.player.x, state.player.y, C.gelBlue, 30);
+  setMessage('💥 BIOPRINT BLAST! The future is soft, but the impact is HARD!');
+}
+
+function shoot(targetX, targetY) {
+  if (state.shootCooldown > 0) return;
+  state.shootCooldown = 15;
+  const dx = targetX - state.player.x;
+  const dy = targetY - state.player.y;
+  const len = Math.sqrt(dx*dx + dy*dy) || 1;
+  state.bullets.push({
+    x: state.player.x, y: state.player.y,
+    vx: (dx/len) * 8, vy: (dy/len) * 8,
+    type: 'normal', dmg: 10, life: 60, size: 4
+  });
+}
+
+function autoShoot() {
+  // find nearest enemy
+  let target = null;
+  let dist = 999999;
+  for (const e of state.enemies) {
+    const d = Math.hypot(e.x - state.player.x, e.y - state.player.y);
+    if (d < dist) { dist = d; target = e; }
+  }
+  if (state.boss && !target) target = state.boss;
+  if (target && dist < 350) {
+    shoot(target.x, target.y);
+  }
+}
+
+// ---- PARTICLES ----
+function spawnParticles(x, y, color, count, speed=3) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const s = speed * (0.5 + Math.random());
+    state.particles.push({ x, y, vx: Math.cos(angle)*s, vy: Math.sin(angle)*s, life: 30+Math.random()*20, maxLife: 50, color, size: 2+Math.random()*2 });
+  }
+}
+
+function spawnExplosion(x, y, color, count) {
+  spawnParticles(x, y, color, count, 5);
+  spawnParticles(x, y, '#ffffff', count/2, 3);
+}
+
+function spawnGelPickupEffect(x, y) {
+  for (let i = 0; i < 20; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const s = 2 + Math.random() * 4;
+    state.particles.push({ x, y, vx: Math.cos(angle)*s, vy: Math.sin(angle)*s - 2, life: 40, maxLife: 40, color: C.gelBlue, size: 3 });
+  }
+}
+
+function spawnReagent(x, y) {
+  state.pickups.push({ x, y, type: 'reagent', vy: -2, life: 200, anim: 0 });
+}
+
+// ---- UPDATE ----
+function update() {
+  state.frame++;
+  const p = state.player;
+
+  // movement
+  let dx = 0, dy = 0;
+  if (state.keys['ArrowLeft'] || state.keys['KeyA']) dx -= 1;
+  if (state.keys['ArrowRight'] || state.keys['KeyD']) dx += 1;
+  if (state.keys['ArrowUp'] || state.keys['KeyW']) dy -= 1;
+  if (state.keys['ArrowDown'] || state.keys['KeyS']) dy += 1;
+  if (dx !== 0 || dy !== 0) {
+    const len = Math.sqrt(dx*dx + dy*dy);
+    let spd = p.speed;
+    if (state.coffee > 0) spd += 0.5;
+    p.x += (dx/len)*spd;
+    p.y += (dy/len)*spd;
+    if (dx !== 0) p.facing = dx;
+    p.anim += 0.2;
+  }
+  p.x = Math.max(16, Math.min(784, p.x));
+  p.y = Math.max(48, Math.min(452, p.y));
+
+  // auto-shoot with SPACE
+  if (state.keys['Space']) autoShoot();
+
+  // cooldowns
+  if (state.shootCooldown > 0) state.shootCooldown--;
+  if (state.blastCooldown > 0) state.blastCooldown--;
+  if (state.craftCooldown > 0) state.craftCooldown--;
+  if (p.invincible > 0) p.invincible--;
+  if (state.messageTimer > 0) state.messageTimer--;
+
+  // coffee drain
+  if (state.frame % 120 === 0 && state.coffee > 0) state.coffee -= 2;
+
+  // bullets
+  for (let i = state.bullets.length - 1; i >= 0; i--) {
+    const b = state.bullets[i];
+    b.x += b.vx; b.y += b.vy;
+    b.life--;
+    if (b.life <= 0 || b.x < 0 || b.x > 800 || b.y < 0 || b.y > 480) {
+      state.bullets.splice(i, 1); continue;
+    }
+    // hit enemies
+    for (let j = state.enemies.length - 1; j >= 0; j--) {
+      const e = state.enemies[j];
+      if (Math.hypot(b.x - e.x, b.y - e.y) < e.size) {
+        e.hp -= b.dmg;
+        spawnParticles(b.x, b.y, b.type === 'gel' ? C.gelBlue : C.bullet, 5);
+        state.bullets.splice(i, 1);
+        if (e.hp <= 0) {
+          killEnemy(j);
+        }
+        break;
+      }
+    }
+    // hit boss
+    if (state.boss) {
+      if (Math.hypot(b.x - state.boss.x, b.y - state.boss.y) < state.boss.size) {
+        state.boss.hp -= b.dmg;
+        spawnParticles(b.x, b.y, b.type === 'gel' ? C.gelBlue : C.bullet, 8);
+        state.bullets.splice(i, 1);
+        if (state.boss.hp <= 0) killBoss();
+      }
+    }
+  }
+
+  // enemies
+  for (let i = state.enemies.length - 1; i >= 0; i--) {
+    const e = state.enemies[i];
+    e.anim += 0.1;
+    const dx2 = p.x - e.x, dy2 = p.y - e.y;
+    const d = Math.sqrt(dx2*dx2 + dy2*dy2) || 1;
+    e.x += (dx2/d) * e.speed;
+    e.y += (dy2/d) * e.speed;
+
+    // enemy shoot
+    if (e.type === 2) {
+      e.shootTimer--;
+      if (e.shootTimer <= 0) {
+        e.shootTimer = 90 + Math.random()*60;
+        shootEnemyBullet(e.x, e.y, p.x, p.y);
+      }
+    }
+
+    // hit player
+    if (d < e.size + 12 && p.invincible === 0) {
+      p.hp -= 10;
+      p.invincible = 60;
+      spawnParticles(p.x, p.y, C.enemy1, 10);
+      setMessage('💥 CONTAMINATION HIT! HP reduced!');
+      if (p.hp <= 0) gameOver();
+    }
+  }
+
+  // boss update
+  if (state.boss) {
+    const b = state.boss;
+    b.anim += 0.05;
+    b.patternTimer++;
+    b.shootTimer--;
+
+    const dx2 = p.x - b.x, dy2 = p.y - b.y;
+    const d = Math.sqrt(dx2*dx2 + dy2*dy2) || 1;
+
+    // boss movement patterns
+    if (b.patternTimer > 180) { b.pattern = (b.pattern + 1) % 3; b.patternTimer = 0; }
+    if (b.pattern === 0) { b.x += (dx2/d)*b.speed; b.y += (dy2/d)*b.speed; }
+    else if (b.pattern === 1) { b.x += Math.sin(state.frame*0.05)*2; b.y += (dy2/d)*b.speed; }
+    else { b.x += (dx2/d)*b.speed; b.y += Math.cos(state.frame*0.04)*2.5; }
+
+    b.x = Math.max(50, Math.min(750, b.x));
+    b.y = Math.max(50, Math.min(430, b.y));
+
+    // boss shoots
+    if (b.shootTimer <= 0) {
+      b.shootTimer = b.hp < b.maxHp/2 ? 25 : 45;
+      for (let i = 0; i < (b.hp < b.maxHp/2 ? 6 : 3); i++) {
+        const a = Math.atan2(p.y-b.y, p.x-b.x) + (i-1)*0.3;
+        state.bullets.push({ x:b.x, y:b.y, vx:Math.cos(a)*3.5, vy:Math.sin(a)*3.5, type:'enemy', dmg:15, life:100, size:5, isEnemy:true });
+      }
+    }
+
+    // boss hits player
+    if (d < b.size + 12 && p.invincible === 0) {
+      p.hp -= 15; p.invincible = 90;
+      spawnParticles(p.x, p.y, C.boss, 12);
+      setMessage('👾 BOSS SLAM! -15 HP!');
+      if (p.hp <= 0) gameOver();
+    }
+  }
+
+  // enemy bullets hit player
+  for (let i = state.bullets.length - 1; i >= 0; i--) {
+    const b = state.bullets[i];
+    if (b.isEnemy && Math.hypot(b.x - p.x, b.y - p.y) < 12 && p.invincible === 0) {
+      p.hp -= b.dmg;
+      p.invincible = 45;
+      spawnParticles(p.x, p.y, C.enemy2, 8);
+      state.bullets.splice(i, 1);
+      if (p.hp <= 0) gameOver();
+    }
+  }
+
+  // pickups
+  for (let i = state.pickups.length - 1; i >= 0; i--) {
+    const pk = state.pickups[i];
+    pk.vy += 0.1; pk.y += pk.vy; pk.anim++; pk.life--;
+    if (pk.y > 460 || pk.life <= 0) { state.pickups.splice(i, 1); continue; }
+    if (Math.hypot(pk.x - p.x, pk.y - p.y) < 20) {
+      if (pk.type === 'reagent') { state.reagents = Math.min(9, state.reagents + 1); spawnParticles(pk.x, pk.y, C.gelBlue, 8); }
+      if (pk.type === 'coffee') { state.coffee = Math.min(100, state.coffee + 25); spawnParticles(pk.x, pk.y, C.coffee, 8); setMessage('☕ COFFEE CONSUMED! Speed boost!'); }
+      if (pk.type === 'hp') { p.hp = Math.min(p.maxHp, p.hp + 25); spawnParticles(pk.x, pk.y, '#ff8888', 8); setMessage('💊 HP RESTORED! +25 HP'); }
+      state.pickups.splice(i, 1);
+    }
+  }
+
+  // particles
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const pt = state.particles[i];
+    pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.05; pt.life--;
+    pt.vx *= 0.95; pt.vy *= 0.95;
+    if (pt.life <= 0) state.particles.splice(i, 1);
+  }
+
+  // wave check
+  if (state.enemies.length === 0 && !state.bossActive && state.running) {
+    state.waveTimer++;
+    if (state.waveTimer > 120) { state.waveTimer = 0; spawnWave(); }
+  }
+
+  // update HUD
+  updateHUD();
+}
+
+function killEnemy(idx) {
+  const e = state.enemies[idx];
+  spawnExplosion(e.x, e.y, e.type === 2 ? C.enemy2 : C.enemy1, 15);
+  state.score += e.type === 2 ? 200 : 100;
+  state.xp += e.type === 2 ? 30 : 15;
+  // drop reagent
+  if (Math.random() < 0.5) spawnReagent(e.x, e.y);
+  if (Math.random() < 0.1) state.pickups.push({ x: e.x, y: e.y, type: 'coffee', vy: -2, life: 200, anim: 0 });
+  if (Math.random() < 0.08) state.pickups.push({ x: e.x, y: e.y, type: 'hp', vy: -2, life: 200, anim: 0 });
+  state.enemies.splice(idx, 1);
+  checkLevelUp();
+}
+
+function killBoss() {
+  spawnExplosion(state.boss.x, state.boss.y, C.boss, 50);
+  spawnExplosion(state.boss.x, state.boss.y, '#ffffff', 30);
+  state.score += 2000;
+  state.xp += 200;
+  state.gels += 2;
+  state.reagents = Math.min(9, state.reagents + 3);
+  state.bossActive = false;
+  state.boss = null;
+  setMessage('🏆 BOSS DEFEATED! +2 MICROGELS! BIOMATERIAL UNLOCKED!');
+  spawnAchievement('BOSS SLAIN! +2 GELS!');
+  checkLevelUp();
+}
+
+function checkLevelUp() {
+  if (state.xp >= state.xpNeeded) {
+    state.xp -= state.xpNeeded;
+    state.xpNeeded = Math.floor(state.xpNeeded * 1.5);
+    state.level++;
+    state.player.maxHp += 10;
+    state.player.hp = Math.min(state.player.hp + 20, state.player.maxHp);
+    state.player.speed += 0.1;
+    spawnAchievement(`LEVEL UP! Lv.${state.level}!`);
+    setMessage(`🌟 LEVEL UP! Now Lv.${state.level}! +MaxHP +Speed`);
+  }
+}
+
+function shootEnemyBullet(fx, fy, tx, ty) {
+  const dx = tx-fx, dy = ty-fy;
+  const d = Math.sqrt(dx*dx+dy*dy)||1;
+  state.bullets.push({ x:fx, y:fy, vx:(dx/d)*2.5, vy:(dy/d)*2.5, type:'enemy', dmg:8, life:120, size:4, isEnemy:true });
+}
+
+function gameOver() {
+  state.running = false;
+  const overlay = document.getElementById('overlay');
+  overlay.innerHTML = `
+    <div class="overlay-title" style="color:#ff4444">GAME OVER</div>
+    <div style="font-size:22px;margin:10px">💀</div>
+    <div class="overlay-sub">CONTAMINATION WINS... THIS TIME.<br><br>
+    Wave Reached: ${state.wave}<br>Score: ${state.score}<br>Gels Crafted: ${state.gels}</div>
+    <div class="pixel-divider"></div>
+    <div style="font-size:7px;color:#885555;text-align:center;line-height:2">BUT SCIENCE NEVER GIVES UP.</div>
+    <button class="overlay-btn" style="border-color:#ff4444;color:#ff6666" id="startBtn">↺ TRY AGAIN</button>
+  `;
+  overlay.classList.remove('hidden');
+  document.getElementById('startBtn').addEventListener('click', startGame);
+}
+
+function setMessage(msg) {
+  document.getElementById('messageBox').textContent = msg;
+  state.messageTimer = 180;
+}
+
+function spawnAchievement(text) {
+  const el = document.createElement('div');
+  el.className = 'achievement-popup';
+  el.innerHTML = `⭐ ACHIEVEMENT<br>${text}`;
+  document.getElementById('gameWrapper').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function updateHUD() {
+  const p = state.player;
+  document.getElementById('hpBar').style.width = `${(p.hp/p.maxHp)*100}%`;
+  document.getElementById('hpText').textContent = `${Math.max(0,p.hp)}/${p.maxHp}`;
+  document.getElementById('xpBar').style.width = `${(state.xp/state.xpNeeded)*100}%`;
+  document.getElementById('xpText').textContent = `${state.xp}/${state.xpNeeded}`;
+  document.getElementById('coffeeBar').style.width = `${state.coffee}%`;
+  document.getElementById('levelText').textContent = String(state.level).padStart(2,'0');
+  document.getElementById('gelText').textContent = state.gels;
+  document.getElementById('scoreText').textContent = state.score;
+}
+
+// ---- DRAW ----
+function draw() {
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, 800, 480);
+
+  drawFloor();
+  drawLabDecorations();
+  drawPickups();
+  drawParticles();
+  drawBullets();
+  drawEnemies();
+  if (state.boss) drawBoss();
+  drawPlayer();
+  drawUI();
+}
+
+function drawFloor() {
+  const tileSize = 40;
+  for (let ty = 0; ty < 480; ty += tileSize) {
+    for (let tx = 0; tx < 800; tx += tileSize) {
+      const idx = (Math.floor(tx/tileSize) + Math.floor(ty/tileSize)) % 2;
+      ctx.fillStyle = idx === 0 ? C.tile1 : C.tile2;
+      ctx.fillRect(tx, ty, tileSize, tileSize);
+    }
+  }
+  // grid lines
+  ctx.strokeStyle = 'rgba(40,40,80,0.5)';
+  ctx.lineWidth = 1;
+  for (let ty = 0; ty <= 480; ty += tileSize) { ctx.beginPath(); ctx.moveTo(0,ty); ctx.lineTo(800,ty); ctx.stroke(); }
+  for (let tx = 0; tx <= 800; tx += tileSize) { ctx.beginPath(); ctx.moveTo(tx,0); ctx.lineTo(tx,480); ctx.stroke(); }
+}
+
+function drawLabDecorations() {
+  // bioprinter left
+  drawBioprinter(80, 200);
+  // flask stand right
+  drawFlaskStand(700, 180);
+  // laptop bottom right
+  drawLaptop(660, 380);
+  // books corner
+  drawBooks(30, 390);
+  // panda mascot
+  drawPanda(730, 300);
+  // center area marker
+  ctx.strokeStyle = 'rgba(68,221,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4,4]);
+  ctx.strokeRect(100, 80, 600, 320);
+  ctx.setLineDash([]);
+  // reagent counter display
+  ctx.fillStyle = 'rgba(20,20,40,0.8)';
+  ctx.fillRect(5, 5, 100, 30);
+  ctx.strokeStyle = '#334455';
+  ctx.strokeRect(5, 5, 100, 30);
+  ctx.fillStyle = '#44ddff';
+  ctx.font = '6px "Press Start 2P"';
+  ctx.fillText(`REAGENTS: ${state.reagents}/3`, 10, 18);
+  ctx.fillStyle = state.craftCooldown > 0 ? '#ff4444' : '#88ff44';
+  ctx.fillText(state.craftCooldown > 0 ? `CRAFT: ${Math.ceil(state.craftCooldown/60)}s` : 'Z:CRAFT', 10, 30);
+}
+
+function drawBioprinter(x, y) {
+  // frame
+  ctx.fillStyle = '#1a2233';
+  ctx.fillRect(x-28, y-28, 56, 56);
+  ctx.strokeStyle = '#334466';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x-28, y-28, 56, 56);
+  // glow
+  ctx.fillStyle = 'rgba(68,136,187,0.2)';
+  ctx.fillRect(x-20, y-20, 40, 40);
+  // printing nozzle
+  ctx.fillStyle = '#4488bb';
+  ctx.fillRect(x-4, y-15, 8, 4);
+  ctx.fillStyle = C.gelBlue;
+  ctx.fillRect(x-2, y-11, 4, 8);
+  // object being printed
+  const pulse = Math.sin(state.frame * 0.1) * 2;
+  ctx.fillStyle = `rgba(68,221,255,${0.5+Math.sin(state.frame*0.1)*0.3})`;
+  ctx.fillRect(x-8, y+5+pulse, 16, 10);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '5px "Press Start 2P"';
+  ctx.fillText('BIOPRINT', x-18, y+28);
+}
+
+function drawFlaskStand(x, y) {
+  // stand
+  ctx.fillStyle = '#222233';
+  ctx.fillRect(x-20, y+30, 40, 5);
+  ctx.fillRect(x-2, y-20, 4, 52);
+  // flask
+  ctx.fillStyle = `rgba(68,221,255,${0.6+Math.sin(state.frame*0.08)*0.2})`;
+  ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#88ffff';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // bubbles
+  for (let i = 0; i < 3; i++) {
+    const by = y + Math.sin(state.frame*0.05 + i*2)*5;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath(); ctx.arc(x-5+i*5, by, 2, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawLaptop(x, y) {
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(x-25, y-15, 50, 35);
+  ctx.fillRect(x-30, y+20, 60, 5);
+  ctx.fillStyle = '#223344';
+  ctx.fillRect(x-22, y-12, 44, 28);
+  ctx.fillStyle = '#1a3a5a';
+  ctx.fillRect(x-20, y-10, 40, 24);
+  ctx.fillStyle = '#44aaff';
+  ctx.font = '5px "Press Start 2P"';
+  ctx.fillText('MAINSAIL', x-15, y+3);
+  ctx.fillStyle = '#334455';
+  ctx.fillRect(x-10, y+8, 20, 6);
+}
+
+function drawBooks(x, y) {
+  const books = [
+    { color: '#aa2244', w: 14 }, { color: '#224488', w: 10 },
+    { color: '#228833', w: 12 }, { color: '#884422', w: 8 }
+  ];
+  let bx = x;
+  for (const b of books) {
+    ctx.fillStyle = b.color;
+    ctx.fillRect(bx, y-25, b.w, 25);
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, y-25, b.w, 25);
+    bx += b.w + 1;
+  }
+  // mug
+  ctx.fillStyle = C.coffee;
+  ctx.fillRect(bx+5, y-12, 16, 12);
+  ctx.strokeStyle = C.coffee;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(bx+21, y-6, 4, -0.5, 0.5); ctx.stroke();
+}
+
+function drawPanda(x, y) {
+  // panda body
+  ctx.fillStyle = '#dddddd';
+  ctx.fillRect(x-12, y-10, 24, 20);
+  // ears
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x-12, y-18, 8, 8);
+  ctx.fillRect(x+4, y-18, 8, 8);
+  // eyes
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x-8, y-6, 6, 6);
+  ctx.fillRect(x+2, y-6, 6, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x-7, y-5, 2, 2);
+  ctx.fillRect(x+3, y-5, 2, 2);
+  // lab coat
+  ctx.fillStyle = 'rgba(200,200,255,0.4)';
+  ctx.fillRect(x-10, y, 20, 14);
+}
+
+function drawPickups(){ 
+  for (const pk of state.pickups) {
+    const bob = Math.sin(pk.anim * 0.1) * 3;
+    if (pk.type === 'reagent') {
+      ctx.fillStyle = C.gelBlue;
+      ctx.shadowColor = C.gelGlow; ctx.shadowBlur = 8;
+      ctx.fillRect(pk.x-5, pk.y-5+bob, 10, 10);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '5px "Press Start 2P"';
+      ctx.fillText('R', pk.x-3, pk.y+3+bob);
+      ctx.shadowBlur = 0;
+    } else if (pk.type === 'coffee') {
+      ctx.fillStyle = C.coffee;
+      ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 6;
+      ctx.fillRect(pk.x-6, pk.y-6+bob, 12, 12);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '8px serif';
+      ctx.fillText('☕', pk.x-5, pk.y+5+bob);
+      ctx.shadowBlur = 0;
+    } else if (pk.type === 'hp') {
+      ctx.fillStyle = '#ff4466';
+      ctx.shadowColor = '#ff0044'; ctx.shadowBlur = 6;
+      ctx.fillRect(pk.x-6, pk.y-6+bob, 12, 12);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '8px serif';
+      ctx.fillText('💊', pk.x-5, pk.y+5+bob);
+      ctx.shadowBlur = 0;
+    }
+  }
+}
+
+function drawParticles() {
+  for (const pt of state.particles) {
+    const alpha = pt.life / pt.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = pt.color;
+    ctx.fillRect(pt.x - pt.size/2, pt.y - pt.size/2, pt.size, pt.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBullets() {
+  for (const b of state.bullets) {
+    if (b.type === 'gel') {
+      ctx.fillStyle = C.gelProjectile;
+      ctx.shadowColor = C.gelBlue; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill();
+    } else if (b.isEnemy) {
+      ctx.fillStyle = C.enemy1;
+      ctx.shadowColor = C.enemyGlow; ctx.shadowBlur = 6;
+      ctx.fillRect(b.x-b.size/2, b.y-b.size/2, b.size, b.size);
+    } else {
+      ctx.fillStyle = C.bullet;
+      ctx.shadowColor = C.bulletGlow; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.size/2, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+      // trail
+      ctx.fillStyle = 'rgba(255,255,100,0.3)';
+      ctx.fillRect(b.x - b.vx*2 - 1, b.y - b.vy*2 - 1, 3, 3);
+    }
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawEnemies() {
+  for (const e of state.enemies) {
+    const wobble = Math.sin(e.anim) * 2;
+    if (e.type === 2) {
+      // spiky contamination
+      ctx.fillStyle = C.enemy2;
+      ctx.shadowColor = C.enemyGlow; ctx.shadowBlur = 12;
+      for (let s = 0; s < 8; s++) {
+        const a = (s / 8) * Math.PI * 2 + e.anim * 0.1;
+        const sr = e.size + 4 * Math.sin(e.anim * 0.2 + s);
+        ctx.fillRect(e.x + Math.cos(a)*sr - 3, e.y + Math.sin(a)*sr - 3, 6, 6);
+      }
+      ctx.fillRect(e.x-e.size/2, e.y-e.size/2+wobble, e.size, e.size);
+    } else {
+      // blob contamination
+      ctx.fillStyle = C.enemy1;
+      ctx.shadowColor = C.enemyGlow; ctx.shadowBlur = 10;
+      ctx.beginPath();
+      for (let s = 0; s < 8; s++) {
+        const a = (s/8)*Math.PI*2;
+        const r = e.size + Math.sin(e.anim*0.3+s)*3;
+        s===0 ? ctx.moveTo(e.x+Math.cos(a)*r, e.y+Math.sin(a)*r+wobble) : ctx.lineTo(e.x+Math.cos(a)*r, e.y+Math.sin(a)*r+wobble);
+      }
+      ctx.closePath(); ctx.fill();
+      // eyes
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(e.x-5, e.y-4+wobble, 4, 4);
+      ctx.fillRect(e.x+1, e.y-4+wobble, 4, 4);
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(e.x-4, e.y-3+wobble, 2, 2);
+      ctx.fillRect(e.x+2, e.y-3+wobble, 2, 2);
+    }
+    ctx.shadowBlur = 0;
+    // HP bar
+    if (e.hp < e.maxHp) {
+      const bw = e.size*2;
+      ctx.fillStyle = '#330000';
+      ctx.fillRect(e.x-bw/2, e.y-e.size-8, bw, 4);
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(e.x-bw/2, e.y-e.size-8, bw*(e.hp/e.maxHp), 4);
+    }
+  }
+}
+
+function drawBoss() {
+  const b = state.boss;
+  if (!b) return;
+  const wobble = Math.sin(b.anim) * 4;
+
+  // glow
+  ctx.shadowColor = C.bossGlow;
+  ctx.shadowBlur = 30;
+
+  // outer ring
+  ctx.strokeStyle = C.boss;
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(b.x, b.y+wobble, b.size+8, 0, Math.PI*2); ctx.stroke();
+
+  // spikes
+  for (let i = 0; i < 12; i++) {
+    const a = (i/12)*Math.PI*2 + b.anim*0.05;
+    const r1 = b.size+8, r2 = b.size+20+Math.sin(b.anim*0.1+i)*5;
+    ctx.strokeStyle = b.hp < b.maxHp/2 ? '#ff0000' : C.boss;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(b.x+Math.cos(a)*r1, b.y+Math.sin(a)*r1+wobble);
+    ctx.lineTo(b.x+Math.cos(a)*r2, b.y+Math.sin(a)*r2+wobble);
+    ctx.stroke();
+  }
+
+  // body
+  ctx.fillStyle = b.hp < b.maxHp/2 ? '#440000' : '#220033';
+  ctx.beginPath(); ctx.arc(b.x, b.y+wobble, b.size, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = C.boss; ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // face
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#ff00ff';
+  ctx.fillRect(b.x-14, b.y-8+wobble, 10, 10);
+  ctx.fillRect(b.x+4, b.y-8+wobble, 10, 10);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(b.x-12, b.y-6+wobble, 6, 6);
+  ctx.fillRect(b.x+6, b.y-6+wobble, 6, 6);
+  // angry eyebrows
+  ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(b.x-15, b.y-12+wobble); ctx.lineTo(b.x-3, b.y-10+wobble); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(b.x+3, b.y-10+wobble); ctx.lineTo(b.x+15, b.y-12+wobble); ctx.stroke();
+  // mouth
+  ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(b.x-10, b.y+8+wobble); ctx.lineTo(b.x-6, b.y+14+wobble); ctx.lineTo(b.x, b.y+12+wobble); ctx.lineTo(b.x+6, b.y+14+wobble); ctx.lineTo(b.x+10, b.y+8+wobble); ctx.stroke();
+
+  ctx.shadowBlur = 0;
+
+  // boss HP bar
+  const bw = 120;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(b.x-bw/2-2, b.y-b.size-20, bw+4, 10);
+  ctx.fillStyle = '#330033';
+  ctx.fillRect(b.x-bw/2, b.y-b.size-19, bw, 8);
+  ctx.fillStyle = b.hp < b.maxHp/2 ? '#ff0000' : C.boss;
+  ctx.fillRect(b.x-bw/2, b.y-b.size-19, bw*(b.hp/b.maxHp), 8);
+  ctx.fillStyle = '#ff88ff';
+  ctx.font = '5px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText('MEGA CONTAMINATION', b.x, b.y-b.size-22);
+  ctx.textAlign = 'left';
+}
+
+function drawPlayer() {
+  const p = state.player;
+  const flip = p.facing < 0;
+  const bob = Math.sin(p.anim) * 2;
+
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  if (flip) ctx.scale(-1, 1);
+
+  // invincibility flash
+  if (p.invincible > 0 && Math.floor(state.frame/4) % 2 === 0) {
+    ctx.globalAlpha = 0.4;
+  }
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(-10, 14+bob, 20, 4);
+
+  // legs
+  const legSwing = Math.sin(p.anim) * 4;
+  ctx.fillStyle = '#333355';
+  ctx.fillRect(-6, 8+bob, 5, 12+legSwing);
+  ctx.fillRect(1, 8+bob, 5, 12-legSwing);
+  // shoes
+  ctx.fillStyle = '#4a3000';
+  ctx.fillRect(-8, 18+bob+legSwing, 7, 4);
+  ctx.fillRect(1, 18+bob-legSwing, 7, 4);
+
+  // body / lab coat
+  ctx.fillStyle = '#ddddee';
+  ctx.fillRect(-9, -4+bob, 18, 14);
+  // coat lapels
+  ctx.fillStyle = '#bbbbcc';
+  ctx.fillRect(-9, -4+bob, 4, 14);
+  // shirt
+  ctx.fillStyle = '#883333';
+  ctx.fillRect(-5, -3+bob, 10, 12);
+
+  // arms
+  const armSwing = Math.sin(p.anim) * 3;
+  ctx.fillStyle = '#ddddee';
+  ctx.fillRect(-14, -3+bob+armSwing, 6, 10);
+  ctx.fillRect(8, -3+bob-armSwing, 6, 10);
+  // hands
+  ctx.fillStyle = '#c8a878';
+  ctx.fillRect(-14, 6+bob+armSwing, 6, 4);
+  ctx.fillRect(8, 6+bob-armSwing, 6, 4);
+
+  // head
+  ctx.fillStyle = '#c8a878';
+  ctx.fillRect(-8, -18+bob, 16, 16);
+  // hair
+  ctx.fillStyle = '#222211';
+  ctx.fillRect(-8, -18+bob, 16, 5);
+  ctx.fillRect(-9, -14+bob, 3, 5);
+  // glasses
+  ctx.strokeStyle = '#554433';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(-7, -12+bob, 5, 4);
+  ctx.strokeRect(2, -12+bob, 5, 4);
+  ctx.beginPath(); ctx.moveTo(-2, -10+bob); ctx.lineTo(2, -10+bob); ctx.stroke();
+  // eyes behind glasses
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-6, -11+bob, 3, 2);
+  ctx.fillRect(3, -11+bob, 3, 2);
+  // beard
+  ctx.fillStyle = '#443322';
+  ctx.fillRect(-6, -4+bob, 12, 4);
+  ctx.fillRect(-7, -7+bob, 3, 4);
+  ctx.fillRect(4, -7+bob, 3, 4);
+  // smile
+  ctx.fillStyle = '#c87050';
+  ctx.fillRect(-3, -3+bob, 6, 2);
+
+  // flask held in right hand (when not shooting)
+  if (state.shootCooldown === 0) {
+    ctx.fillStyle = `rgba(68,221,255,${0.7+Math.sin(state.frame*0.1)*0.2})`;
+    ctx.shadowColor = C.gelBlue; ctx.shadowBlur = 8;
+    ctx.fillRect(6, -8+bob, 8, 12);
+    ctx.fillRect(8, -12+bob, 4, 6);
+    ctx.shadowBlur = 0;
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // shoot direction indicator (aiming reticle)
+  if (state.shootCooldown > 0) {
+    ctx.strokeStyle = 'rgba(255,255,100,0.5)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2,2]);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 20, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawUI() {
+  // wave indicator
+  ctx.fillStyle = 'rgba(20,20,40,0.7)';
+  ctx.fillRect(650, 5, 145, 22);
+  ctx.strokeStyle = '#334455';
+  ctx.strokeRect(650, 5, 145, 22);
+  ctx.fillStyle = '#88ff44';
+  ctx.font = '7px "Press Start 2P"';
+  ctx.fillText(`WAVE ${state.wave}`, 660, 18);
+
+  // blast cooldown
+  if (state.blastCooldown > 0) {
+    ctx.fillStyle = 'rgba(20,20,40,0.8)';
+    ctx.fillRect(650, 32, 145, 20);
+    ctx.fillStyle = '#ff4488';
+    ctx.font = '5px "Press Start 2P"';
+    ctx.fillText(`BLAST CD: ${Math.ceil(state.blastCooldown/60)}s`, 655, 44);
+  } else {
+    ctx.fillStyle = 'rgba(20,40,20,0.8)';
+    ctx.fillRect(650, 32, 145, 20);
+    ctx.fillStyle = '#44ff88';
+    ctx.font = '5px "Press Start 2P"';
+    ctx.fillText(`X: BIOPRINT BLAST!`, 655, 44);
+  }
+
+  // enemy count
+  const total = state.enemies.length + (state.boss ? 1 : 0);
+  if (total > 0) {
+    ctx.fillStyle = 'rgba(40,0,0,0.7)';
+    ctx.fillRect(650, 57, 145, 20);
+    ctx.fillStyle = '#ff6666';
+    ctx.font = '5px "Press Start 2P"';
+    ctx.fillText(`ENEMIES: ${state.enemies.length}${state.boss ? ' + BOSS' : ''}`, 655, 69);
+  }
+}
+
+// ---- LOOP ----
+function loop() {
+  if (!state.running) return;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
