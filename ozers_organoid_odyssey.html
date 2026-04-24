@@ -1,0 +1,553 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0a0a1a;display:flex;flex-direction:column;align-items:center;font-family:'Press Start 2P',monospace;overflow:hidden;}
+#hud{width:100%;max-width:480px;background:#11112a;border-bottom:3px solid #f5c518;padding:5px 10px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.hud-label{font-size:5px;color:#5a7a9a;margin-bottom:1px;}
+.hud-val{font-size:8px;color:#fff;}
+#gameCanvas{display:block;width:100%;max-width:480px;image-rendering:pixelated;cursor:none;}
+#controls{width:100%;max-width:480px;background:#0d0d1f;border-top:3px solid #1a3a5a;padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.ctrl-btn{font-family:'Press Start 2P',monospace;font-size:7px;padding:10px 6px;border:2px solid #2a5a2a;background:#0a1a0a;color:#39d353;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+.ctrl-btn:active{background:#1a4a1a;}
+#fix-btn{font-family:'Press Start 2P',monospace;font-size:7px;padding:10px;border:3px solid #f5c518;background:#1a150a;color:#f5c518;cursor:pointer;grid-column:1/-1;touch-action:manipulation;}
+</style>
+
+<div id="hud">
+  <div><div class="hud-label">SCORE</div><div class="hud-val" id="h-score">0</div></div>
+  <div style="text-align:center"><div class="hud-label">ORGANOIDS</div><div class="hud-val" id="h-org">3 ALIVE</div></div>
+  <div style="text-align:center"><div class="hud-label">WAVE</div><div class="hud-val" id="h-wave">1</div></div>
+  <div style="text-align:right"><div class="hud-label">TIME</div><div class="hud-val" id="h-time">90</div></div>
+</div>
+<canvas id="gameCanvas" width="480" height="320"></canvas>
+<div id="controls">
+  <button class="ctrl-btn" id="btn-left" ontouchstart="keys.left=true;event.preventDefault()" ontouchend="keys.left=false">◄ LEFT</button>
+  <button class="ctrl-btn" id="btn-right" ontouchstart="keys.right=true;event.preventDefault()" ontouchend="keys.right=false">RIGHT ►</button>
+  <button id="fix-btn" ontouchstart="tryFix();event.preventDefault()">⚡ FIX MACHINE [SPACE]</button>
+</div>
+
+<script>
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+const W=480,H=320;
+const FLOOR_Y=H-60;
+
+let score=0,wave=1,timeLeft=90,gameRunning=false,gamePhase='title'; // title|playing|dead|win
+let animId=null,timerInt=null,titleT=0,fixProgress=0;
+const keys={left:false,right:false,space:false};
+
+const OZ={x:80,y:0,vx:0,vy:0,w:18,h:28,onGround:false,dir:1,frame:0,frameTimer:0,
+  get cx(){return this.x+this.w/2;},get feet(){return this.y+this.h;}};
+
+const MACHINES=[
+  {id:'co2', label:'CO₂',  x:30,  y:FLOOR_Y-44,w:56,h:44,status:'ok',val:5.0, target:5.0, unit:'%',   color:'#2a7a5a',fixProgress:0},
+  {id:'temp',label:'TEMP', x:212, y:FLOOR_Y-44,w:56,h:44,status:'ok',val:37.0,target:37.0,unit:'°C',  color:'#8a5a2a',fixProgress:0},
+  {id:'vent',label:'VENT', x:394, y:FLOOR_Y-44,w:56,h:44,status:'ok',val:21.0,target:21.0,unit:'% O₂',color:'#2a4a9a',fixProgress:0},
+];
+
+const ORGS=[
+  {x:112,maturity:0,health:100,alive:true,t:0},
+  {x:248,maturity:0,health:100,alive:true,t:Math.PI*0.6},
+  {x:384,maturity:0,health:100,alive:true,t:Math.PI*1.2},
+];
+
+// ── PIXEL OZ (face-accurate: curly dark hair, goatee+mustache, lab coat, black shirt) ──
+function drawOzer(x,y,dir,frame,scale){
+  scale=scale||1;
+  const s=(n)=>Math.round(n*scale);
+  const p=(px,py,pw,ph,c)=>{ctx.fillStyle=c;ctx.fillRect(x+s(px),y+s(py),s(pw),s(ph));};
+  const run=frame%2===0;
+
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath();ctx.ellipse(x+s(9),y+s(30),s(10),s(3),0,0,Math.PI*2);ctx.fill();
+
+  // --- LEGS (dark navy trousers) ---
+  const lL=run?2:0, lR=run?0:2;
+  p(4,20,5,10+lL,'#1a2a6a');
+  p(9,20,5,10+lR,'#1a2a6a');
+  // shoes (dark brown)
+  p(3,30+lL,6,3,'#1a0f00');
+  p(8,30+lR,7,3,'#1a0f00');
+
+  // --- LAB COAT body ---
+  p(2,8,14,14,'#d8e8d8');
+  // black shirt underneath / collar
+  p(5,8,8,4,'#111');
+  p(6,9,6,8,'#111');
+  // coat lapels
+  p(2,8,4,10,'#c8dac8');
+  p(12,8,4,10,'#c8dac8');
+  // coat buttons
+  p(8,13,2,1,'#aaa');
+  p(8,16,2,1,'#aaa');
+
+  // --- ARMS ---
+  const aSwing=run?(frame%2===0?-2:2):0;
+  if(dir>0){
+    p(0,9+aSwing,3,9,'#d8e8d8');   // left arm
+    p(15,9-aSwing,3,9,'#d8e8d8');  // right arm
+    p(0,18+aSwing,3,3,'#c8a07a');  // left hand
+    p(15,18-aSwing,3,3,'#c8a07a');
+  } else {
+    p(15,9+aSwing,3,9,'#d8e8d8');
+    p(0,9-aSwing,3,9,'#d8e8d8');
+    p(15,18+aSwing,3,3,'#c8a07a');
+    p(0,18-aSwing,3,3,'#c8a07a');
+  }
+
+  // --- NECK ---
+  p(7,4,4,5,'#c8a07a');
+
+  // --- HEAD (face) ---
+  // base face — warm tan
+  p(3,-6,12,11,'#c8a07a');
+
+  // HAIR — dark brown curly, full top + sides
+  p(2,-8,14,5,'#1a0800');   // top mass
+  p(1,-7,3,8,'#1a0800');    // left side curls
+  p(14,-7,3,8,'#1a0800');   // right side curls
+  p(2,-5,4,3,'#241000');    // curl detail left
+  p(12,-5,4,3,'#241000');   // curl detail right
+  p(5,-8,8,3,'#241000');    // top wave
+
+  // EYES — dark, expressive
+  const eOff=dir>0?2:0;
+  p(5+eOff,-1,2,2,'#0a0500');
+  p(10+eOff,-1,2,2,'#0a0500');
+  // eye whites
+  p(5+eOff,-1,1,1,'#fff');
+  p(10+eOff,-1,1,1,'#fff');
+
+  // EYEBROWS — thick dark
+  p(5+eOff,-3,3,1,'#1a0800');
+  p(10+eOff,-3,3,1,'#1a0800');
+
+  // NOSE bridge hint
+  p(9,1,1,2,'#b08060');
+
+  // MUSTACHE — thick, slightly drooping (Fu Manchu style)
+  p(4,3,10,2,'#1a0800');   // main bar
+  p(3,4,3,2,'#1a0800');    // left droop
+  p(12,4,3,2,'#1a0800');   // right droop
+
+  // GOATEE / chin beard — narrow vertical patch below lips
+  p(7,5,4,1,'#eee');        // lips gap (light)
+  p(7,6,4,4,'#1a0800');     // chin beard block
+  p(8,9,2,2,'#1a0800');     // beard point
+}
+
+// ── MACHINE ──
+function drawMachine(m){
+  const broken=m.status==='broken', warn=m.status==='warning';
+  const fc=broken?'#c0392b':warn?'#e67e22':m.color;
+  const bg=broken?'#1a0000':warn?'#1a0f00':'#050f05';
+  ctx.fillStyle=bg; ctx.fillRect(m.x,m.y,m.w,m.h);
+  ctx.strokeStyle=fc; ctx.lineWidth=2; ctx.strokeRect(m.x,m.y,m.w,m.h);
+  ctx.fillStyle=fc; ctx.fillRect(m.x,m.y,m.w,3);
+
+  // inner screen
+  ctx.fillStyle=broken?'#2a0000':warn?'#1a0f00':'#001a08';
+  ctx.fillRect(m.x+4,m.y+6,m.w-8,m.h-18);
+
+  // label + val
+  ctx.fillStyle=broken?'#ff5555':warn?'#ffaa33':'#39d353';
+  ctx.font='5px monospace'; ctx.textAlign='center';
+  ctx.fillText(m.label,m.x+m.w/2,m.y+14);
+  ctx.fillText(m.val.toFixed(1),m.x+m.w/2,m.y+22);
+  ctx.font='4px monospace'; ctx.fillStyle='#aaa';
+  ctx.fillText(m.unit,m.x+m.w/2,m.y+28);
+
+  // blinking !
+  if(broken && Math.floor(Date.now()/280)%2===0){
+    ctx.fillStyle='#ff3333'; ctx.font='bold 11px monospace';
+    ctx.fillText('!',m.x+m.w/2,m.y-4);
+  }
+
+  // fix bar
+  if(broken && m.fixProgress>0){
+    ctx.fillStyle='#111'; ctx.fillRect(m.x,m.y+m.h+2,m.w,5);
+    ctx.fillStyle='#f5c518'; ctx.fillRect(m.x,m.y+m.h+2,m.w*m.fixProgress,5);
+  }
+}
+
+// ── ORGANOID TANK ──
+function drawOrg(o){
+  if(!o.alive) return;
+  const tx=o.x, ty=FLOOR_Y-44;
+  o.t+=0.03;
+  const pulse=Math.sin(o.t)*2.5*(o.maturity/100+0.2);
+  const mat=o.maturity/100;
+  const hc=o.health<30?'#e74c3c':o.health<60?'#e07040':'#c05080';
+
+  // tank glass
+  ctx.strokeStyle=o.health<30?'#c0392b':o.health<60?'#e67e22':'#2a6a5a';
+  ctx.lineWidth=2; ctx.strokeRect(tx-20,ty-20,40,38);
+  ctx.fillStyle='rgba(0,20,15,0.75)'; ctx.fillRect(tx-20,ty-20,40,38);
+
+  // liquid fill by maturity
+  const lh=Math.round(36*mat);
+  ctx.fillStyle='rgba(0,80,60,0.3)'; ctx.fillRect(tx-19,ty+17-lh,38,lh);
+
+  // organoid blobs — two lobes
+  const r=4+mat*9+pulse*mat;
+  ctx.fillStyle=hc;
+  ctx.beginPath(); ctx.ellipse(tx-4,ty+3,r*0.65,r,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(tx+4,ty+4,r*0.55,r*0.85,0,0,Math.PI*2); ctx.fill();
+  // bronchus
+  ctx.strokeStyle='rgba(180,70,100,0.8)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(tx,ty-4+r*0.2);
+  ctx.bezierCurveTo(tx-6,ty+2,tx-5,ty+2+r*0.3,tx-4,ty+3+r*0.4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(tx,ty-4+r*0.2);
+  ctx.bezierCurveTo(tx+6,ty+2,tx+4,ty+2+r*0.3,tx+4,ty+4+r*0.35); ctx.stroke();
+
+  // health bar
+  ctx.fillStyle='#111'; ctx.fillRect(tx-19,ty+19,38,4);
+  ctx.fillStyle=o.health<30?'#e74c3c':o.health<60?'#f39c12':'#27ae60';
+  ctx.fillRect(tx-19,ty+19,38*(o.health/100),4);
+
+  // maturity label
+  ctx.fillStyle='#5aaa5a'; ctx.font='5px monospace'; ctx.textAlign='center';
+  ctx.fillText(Math.round(o.maturity)+'%',tx,ty+28);
+}
+
+// ── BACKGROUND ──
+function drawBG(){
+  ctx.fillStyle='#08081a'; ctx.fillRect(0,0,W,H);
+  // wall grid
+  for(let wy=20;wy<FLOOR_Y;wy+=40){
+    ctx.strokeStyle='#0d0d22'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,wy); ctx.lineTo(W,wy); ctx.stroke();
+  }
+  for(let wx=0;wx<W;wx+=40){
+    ctx.strokeStyle='#0d0d22'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(wx,0); ctx.lineTo(wx,FLOOR_Y); ctx.stroke();
+  }
+  // ceiling pipe
+  ctx.fillStyle='#1a2a3a'; ctx.fillRect(0,0,W,5);
+  ctx.fillStyle='#2a3a4a'; ctx.fillRect(0,5,W,3);
+  for(let px=0;px<W;px+=80){
+    ctx.fillStyle='#1a2a3a'; ctx.fillRect(px,0,8,22);
+  }
+  // floor
+  for(let fx=0;fx<W;fx+=16){
+    ctx.fillStyle=Math.floor(fx/16)%2===0?'#172417':'#131f13';
+    ctx.fillRect(fx,FLOOR_Y,16,8);
+    ctx.fillStyle='#0e190e'; ctx.fillRect(fx,FLOOR_Y+8,16,H-FLOOR_Y-8);
+  }
+  ctx.fillStyle='#2a5a2a'; ctx.fillRect(0,FLOOR_Y,W,2);
+}
+
+// ── TITLE SCREEN ──
+function drawTitle(){
+  titleT+=0.02;
+  ctx.fillStyle='#08081a'; ctx.fillRect(0,0,W,H);
+
+  // animated scanlines
+  for(let sy=0;sy<H;sy+=4){
+    ctx.fillStyle='rgba(0,0,0,0.18)'; ctx.fillRect(0,sy,W,2);
+  }
+
+  // deep bg glow
+  const grd=ctx.createRadialGradient(W/2,H/2,10,W/2,H/2,220);
+  grd.addColorStop(0,'rgba(40,80,40,0.25)');
+  grd.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+
+  // lab floor
+  for(let fx=0;fx<W;fx+=16){
+    ctx.fillStyle=Math.floor(fx/16)%2===0?'#0f1c0f':'#0c170c';
+    ctx.fillRect(fx,FLOOR_Y,16,H-FLOOR_Y);
+  }
+  ctx.fillStyle='#1a3a1a'; ctx.fillRect(0,FLOOR_Y,W,2);
+
+  // machine silhouettes in bg
+  [50,200,350].forEach((mx,i)=>{
+    const flash=Math.sin(titleT*2+i)>0.6;
+    ctx.strokeStyle=flash?'#c0392b':'#1a3a1a';
+    ctx.lineWidth=2; ctx.strokeRect(mx,FLOOR_Y-44,56,44);
+    ctx.fillStyle=flash?'#1a0000':'#050f05'; ctx.fillRect(mx,FLOOR_Y-44,56,44);
+    if(flash){
+      ctx.fillStyle='#ff3333'; ctx.font='bold 14px monospace'; ctx.textAlign='center';
+      ctx.fillText('!',mx+28,FLOOR_Y-50);
+    }
+  });
+
+  // OZER — large, centered, on the floor
+  const ozX=W/2-9, ozY=FLOOR_Y-28;
+  // idle bob
+  const bob=Math.round(Math.sin(titleT*3)*1.5);
+  drawOzer(ozX, ozY+bob, 1, 0, 1.6);
+
+  // speech bubble
+  const bx=ozX+36, by=ozY-30;
+  ctx.fillStyle='#f5f5e0'; ctx.strokeStyle='#ccc'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(bx,by,130,28,4); ctx.fill(); ctx.stroke();
+  // bubble tail
+  ctx.fillStyle='#f5f5e0';
+  ctx.beginPath(); ctx.moveTo(bx+6,by+28); ctx.lineTo(bx-6,by+40); ctx.lineTo(bx+20,by+28); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#1a0a00'; ctx.font='5px monospace'; ctx.textAlign='left';
+  ctx.fillText("Time to grow some",bx+8,by+11);
+  ctx.fillStyle='#2a7a2a';
+  ctx.fillText("LUNG ORGANOIDS!",bx+8,by+22);
+
+  // title text
+  const ty1=38+Math.round(Math.sin(titleT*1.5)*2);
+  // gold glow behind title
+  ctx.fillStyle='rgba(245,197,24,0.08)';
+  ctx.fillRect(20,ty1-14,W-40,20);
+
+  ctx.fillStyle='#f5c518';
+  ctx.font='16px monospace'; ctx.textAlign='center';
+  ctx.fillText("OZER'S",W/2,ty1);
+  ctx.fillStyle='#39d353';
+  ctx.font='11px monospace';
+  ctx.fillText('ORGANOID ODYSSEY',W/2,ty1+18);
+
+  // subtitle blink
+  if(Math.floor(titleT*2)%2===0){
+    ctx.fillStyle='#aaa'; ctx.font='6px monospace';
+    ctx.fillText('► PRESS START ◄',W/2,ty1+40);
+  }
+
+  // bottom flavor text
+  ctx.fillStyle='#2a5a2a'; ctx.font='5px monospace';
+  ctx.fillText('balance CO₂ · temp · ventilation · keep organoids alive',W/2,H-8);
+
+  // stat badges
+  const badges=[['CO₂','5.0%','#2a7a5a'],['TEMP','37°C','#8a5a2a'],['O₂','21%','#2a4a9a']];
+  badges.forEach((b,i)=>{
+    const bx2=16+i*152, by2=FLOOR_Y-90;
+    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(bx2,by2,100,18);
+    ctx.strokeStyle=b[2]; ctx.lineWidth=1.5; ctx.strokeRect(bx2,by2,100,18);
+    ctx.fillStyle=b[2]; ctx.font='5px monospace'; ctx.textAlign='left';
+    ctx.fillText(b[0]+': '+b[1],bx2+6,by2+12);
+  });
+}
+
+// ── PROXIMITY ──
+function getNearMachine(){
+  for(const m of MACHINES){
+    if(Math.abs(OZ.cx-(m.x+m.w/2))<52) return m;
+  }
+  return null;
+}
+
+function tryFix(){
+  const m=getNearMachine();
+  if(m&&m.status==='broken'){
+    m.fixProgress=Math.min(1,(m.fixProgress||0)+0.35);
+    if(m.fixProgress>=1){ m.status='ok'; m.val=m.target; m.fixProgress=0; score+=200; updHUD(); }
+  }
+}
+
+// ── SCHEDULE BREAKDOWNS ──
+function scheduleBreakdown(){
+  const delay=4000+Math.random()*7000/Math.max(1,wave*0.4);
+  setTimeout(()=>{
+    if(!gameRunning) return;
+    const ok=MACHINES.filter(m=>m.status==='ok');
+    if(ok.length){
+      const m=ok[Math.floor(Math.random()*ok.length)];
+      m.status='warning';
+      setTimeout(()=>{if(m.status==='warning') m.status='broken';}, 5500-wave*400);
+    }
+    scheduleBreakdown();
+  },delay);
+}
+
+function updateMachines(dt){
+  MACHINES.forEach(m=>{
+    if(m.status!=='ok') m.val+=(Math.random()-0.5)*0.06*dt/16;
+    else m.val+=(m.target-m.val)*0.04;
+  });
+}
+
+function updateOrgs(dt){
+  const broken=MACHINES.filter(m=>m.status==='broken').length;
+  ORGS.forEach(o=>{
+    if(!o.alive) return;
+    if(broken>0){
+      o.health=Math.max(0,o.health-broken*0.045*dt*(1+wave*0.08));
+    } else {
+      o.health=Math.min(100,o.health+0.004*dt);
+      o.maturity=Math.min(100,o.maturity+0.006*dt);
+      score+=0.04*dt|0;
+    }
+    if(o.health<=0){o.alive=false; o.health=0;}
+  });
+  const alive=ORGS.filter(o=>o.alive).length;
+  document.getElementById('h-org').textContent=alive+' ALIVE';
+  if(alive===0) endGame(false);
+}
+
+function updateOzer(dt){
+  const spd=2.8+wave*0.15;
+  if(keys.left){OZ.vx=-spd;OZ.dir=-1;}
+  else if(keys.right){OZ.vx=spd;OZ.dir=1;}
+  else OZ.vx*=0.65;
+  OZ.x=Math.max(0,Math.min(W-OZ.w,OZ.x+OZ.vx));
+  if(!OZ.onGround) OZ.vy+=0.5*dt/16;
+  OZ.y+=OZ.vy;
+  if(OZ.y+OZ.h>=FLOOR_Y){OZ.y=FLOOR_Y-OZ.h;OZ.vy=0;OZ.onGround=true;}
+  else OZ.onGround=false;
+  if(Math.abs(OZ.vx)>0.5&&OZ.onGround){
+    OZ.frameTimer+=dt;
+    if(OZ.frameTimer>110){OZ.frame=(OZ.frame+1)%2;OZ.frameTimer=0;}
+  }
+  if(keys.space) tryFix();
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  drawBG();
+  MACHINES.forEach(drawMachine);
+  ORGS.forEach(drawOrg);
+  // draw Ozer
+  drawOzer(Math.round(OZ.x),Math.round(OZ.y),OZ.dir,OZ.frame,1);
+
+  // near-machine prompt
+  const near=getNearMachine();
+  if(near&&near.status==='broken'){
+    ctx.fillStyle='#f5c518'; ctx.font='6px monospace'; ctx.textAlign='center';
+    ctx.fillText('[SPACE] FIX '+near.label, near.x+near.w/2, near.y-8);
+    if(near.fixProgress>0){
+      ctx.fillStyle='#222'; ctx.fillRect(near.x,near.y+near.h+2,near.w,5);
+      ctx.fillStyle='#f5c518'; ctx.fillRect(near.x,near.y+near.h+2,near.w*near.fixProgress,5);
+    }
+  }
+
+  // scanlines
+  for(let sy=0;sy<H;sy+=4){
+    ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.fillRect(0,sy,W,2);
+  }
+
+  // HUD status strip
+  ctx.fillStyle='rgba(8,8,26,0.85)'; ctx.fillRect(0,0,W,11);
+  MACHINES.forEach((m,i)=>{
+    const c=m.status==='broken'?'#ff4444':m.status==='warning'?'#f39c12':'#39d353';
+    ctx.fillStyle=c; ctx.font='5px monospace'; ctx.textAlign='left';
+    ctx.fillText(m.label+':'+m.val.toFixed(1)+m.unit, 8+i*162, 8);
+  });
+}
+
+// ── OVERLAY (result) ──
+function showOverlay(title,lines,btnTxt,cb){
+  // draw on canvas
+  gameRunning=false;
+  cancelAnimationFrame(animId);
+  function drawOv(){
+    ctx.clearRect(0,0,W,H);
+    drawBG();
+    ctx.fillStyle='rgba(0,0,0,0.82)'; ctx.fillRect(0,0,W,H);
+
+    // panel
+    ctx.fillStyle='#0a0a1f'; ctx.fillRect(60,40,W-120,H-80);
+    ctx.strokeStyle='#f5c518'; ctx.lineWidth=3; ctx.strokeRect(60,40,W-120,H-80);
+
+    ctx.fillStyle='#f5c518'; ctx.font='13px monospace'; ctx.textAlign='center';
+    ctx.fillText(title,W/2,80);
+
+    ctx.fillStyle='#39d353'; ctx.font='6px monospace';
+    lines.forEach((l,i)=>ctx.fillText(l,W/2,110+i*18));
+
+    // blink button
+    if(Math.floor(Date.now()/500)%2===0){
+      ctx.fillStyle='#f5c518'; ctx.font='7px monospace';
+      ctx.fillText('► '+btnTxt+' ◄',W/2,H-60);
+    }
+
+    // ozer small in corner celebrating
+    drawOzer(W-70,H-100,1,Math.floor(Date.now()/200)%2,1);
+
+    requestAnimationFrame(drawOv);
+  }
+  drawOv();
+  canvas.onclick=()=>{ canvas.onclick=null; cb(); };
+}
+
+function endGame(win){
+  gameRunning=false;
+  clearInterval(timerInt);
+  const alive=ORGS.filter(o=>o.alive).length;
+  const avgMat=Math.round(ORGS.filter(o=>o.alive).reduce((a,o)=>a+o.maturity,0)/Math.max(1,alive));
+  if(win){
+    showOverlay('BREAKTHROUGH!',['Organoids alive: '+alive+'/3','Avg maturity: '+avgMat+'%','Final score: '+score],'PLAY AGAIN',startGame);
+  } else {
+    showOverlay('ORGANOIDS LOST',['All organoids died!','Fix machines faster!','Score: '+score],'RETRY',startGame);
+  }
+}
+
+function updHUD(){
+  document.getElementById('h-score').textContent=score;
+  document.getElementById('h-wave').textContent=wave;
+}
+
+function startGame(){
+  score=0;wave=1;timeLeft=90;gameRunning=true;fixProgress=0;
+  OZ.x=80;OZ.y=FLOOR_Y-OZ.h;OZ.vx=0;OZ.vy=0;OZ.frame=0;
+  MACHINES.forEach(m=>{m.status='ok';m.val=m.target;m.fixProgress=0;});
+  ORGS.forEach((o,i)=>{o.alive=true;o.health=100;o.maturity=0;o.t=i*Math.PI*0.6;});
+  updHUD();
+  scheduleBreakdown();
+  clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    if(!gameRunning) return;
+    timeLeft--;
+    document.getElementById('h-time').textContent=timeLeft;
+    if(timeLeft===60){wave=2;document.getElementById('h-wave').textContent=2;}
+    if(timeLeft===25){wave=3;document.getElementById('h-wave').textContent=3;}
+    if(timeLeft<=0) endGame(true);
+  },1000);
+  cancelAnimationFrame(animId);
+  gamePhase='playing';
+
+  function loop(ts){
+    const now=performance.now();
+    const dt=Math.min(ts-(loop.last||ts),50);
+    loop.last=ts;
+    if(!gameRunning) return;
+    updateOzer(dt);
+    updateMachines(dt);
+    updateOrgs(dt);
+    render();
+    animId=requestAnimationFrame(loop);
+  }
+  animId=requestAnimationFrame(loop);
+}
+
+// ── TITLE LOOP ──
+function titleLoop(){
+  drawTitle();
+  if(gamePhase==='title') animId=requestAnimationFrame(titleLoop);
+}
+
+// start on any key / tap
+function beginFromTitle(){
+  if(gamePhase!=='title') return;
+  gamePhase='starting';
+  cancelAnimationFrame(animId);
+  startGame();
+}
+canvas.addEventListener('click',beginFromTitle);
+window.addEventListener('keydown',e=>{
+  if(e.code==='ArrowLeft'||e.code==='KeyA') keys.left=true;
+  if(e.code==='ArrowRight'||e.code==='KeyD') keys.right=true;
+  if(e.code==='Space'){e.preventDefault();keys.space=true;tryFix();beginFromTitle();}
+  if(e.code==='Enter') beginFromTitle();
+});
+window.addEventListener('keyup',e=>{
+  if(e.code==='ArrowLeft'||e.code==='KeyA') keys.left=false;
+  if(e.code==='ArrowRight'||e.code==='KeyD') keys.right=false;
+  if(e.code==='Space'){keys.space=false;}
+});
+
+document.getElementById('btn-left').addEventListener('mousedown',()=>keys.left=true);
+document.getElementById('btn-left').addEventListener('mouseup',()=>keys.left=false);
+document.getElementById('btn-left').addEventListener('mouseleave',()=>keys.left=false);
+document.getElementById('btn-right').addEventListener('mousedown',()=>keys.right=true);
+document.getElementById('btn-right').addEventListener('mouseup',()=>keys.right=false);
+document.getElementById('btn-right').addEventListener('mouseleave',()=>keys.right=false);
+
+animId=requestAnimationFrame(titleLoop);
+</script>
