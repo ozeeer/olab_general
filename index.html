@@ -261,8 +261,24 @@ footer{padding:1.25rem 1rem;font-size:11px;color:var(--text-faint);text-align:ce
   </div>
 </div>
 
-<footer>Ozbolat Lab &mdash; 2026 &mdash; Made by Ozer</footer>
+<footer id="secret-footer">Ozbolat Lab &mdash; 2026 &mdash; Made by Ozer</footer>
 
+<style>
+#secret-footer {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  text-align: center;
+  padding: 9px 8px;
+  background: #04040f;
+  color: #1a3a1a;
+  border-top: 2px solid #0e1e0e;
+  cursor: pointer;
+  user-select: none;
+  letter-spacing: 1px;
+  transition: color 0.15s, background 0.15s;
+}
+</style>
+  
 <script>
 (function () {
   const footer = document.getElementById('secret-footer');
