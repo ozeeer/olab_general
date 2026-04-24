@@ -263,6 +263,29 @@ footer{padding:1.25rem 1rem;font-size:11px;color:var(--text-faint);text-align:ce
 
 <footer>Ozbolat Lab &mdash; 2026 &mdash; Made by Ozer</footer>
 
+<script>
+/* Footer Easter Egg: click footer 5 times */
+(function () {
+  const footer = document.querySelector("footer");
+  let footerClickCount = 0;
+  let footerClickTimer;
+
+  footer.addEventListener("click", function () {
+    footerClickCount++;
+
+    clearTimeout(footerClickTimer);
+
+    if (footerClickCount >= 5) {
+      window.location.href = "ozers_organoid_odyssey.html";
+    }
+
+    footerClickTimer = setTimeout(function () {
+      footerClickCount = 0;
+    }, 2000);
+  });
+})();
+</script>
+  
 <div class="backdrop" id="backdrop"></div>
 <div class="sheet" id="sheet">
   <div class="handle"></div>
