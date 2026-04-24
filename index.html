@@ -261,29 +261,29 @@ footer{padding:1.25rem 1rem;font-size:11px;color:var(--text-faint);text-align:ce
   </div>
 </div>
 
-<footer id="secret-footer">Ozbolat Lab &mdash; 2026 &mdash; Made by Ozer</footer>
+<footer id="secret-footer">Ozbolat Lab · 2026 · Made by Ozer</footer>
 
 <style>
 #secret-footer {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  font-size: 11px;
   text-align: center;
-  padding: 9px 8px;
-  background: #04040f;
-  color: #1a3a1a;
-  border-top: 2px solid #0e1e0e;
+  padding: 10px 8px;
+  background: transparent;
+  color: #666;
+  border-top: none;
   cursor: pointer;
   user-select: none;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   transition: color 0.15s, background 0.15s;
 }
 </style>
-  
+
 <script>
 (function () {
   const footer = document.getElementById('secret-footer');
   const NEEDED = 5;
-  const ORIGINAL_TEXT = 'Ozbolat Lab \u2014 2026 \u2014 Made by Ozer';
+  const ORIGINAL_TEXT = 'Ozbolat Lab · 2026 · Made by Ozer';
   const STEP_FREQS = [220, 294, 370, 440, 587];
   let count = 0, resetTimer = null;
 
@@ -305,9 +305,9 @@ footer{padding:1.25rem 1rem;font-size:11px;color:var(--text-faint);text-align:ce
   function updateFooter() {
     if (count === 0) {
       footer.textContent = ORIGINAL_TEXT;
-      footer.style.color = '#1a3a1a';
-      footer.style.background = '#04040f';
-      footer.style.borderTopColor = '#0e1e0e';
+      footer.style.color = '#666';
+      
+      
     } else {
       const pips = Array.from({ length: NEEDED }, (_, i) => i < count ? '●' : '○').join('  ');
       footer.textContent = pips;
@@ -315,8 +315,8 @@ footer{padding:1.25rem 1rem;font-size:11px;color:var(--text-faint);text-align:ce
       footer.style.borderTopColor = '#f5c518';
     }
     // flash
-    footer.style.background = '#1a1500';
-    setTimeout(() => footer.style.background = '#04040f', 140);
+    
+    
   }
 
   // ── fanfare on completion ──
