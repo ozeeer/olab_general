@@ -25,9 +25,16 @@
   --coral:#c94f30;--coral-bg:#faeae5;--coral-dark:#7a2a16;
   --slate:#4a5568;--slate-bg:#eef0f3;--slate-dark:#1a202c;
 }
-
+#lab-logo {
+  mix-blend-mode: normal;
+  filter: brightness(0);
+}
 
 @media(prefers-color-scheme:dark){
+   #lab-logo {
+    mix-blend-mode: screen;
+    filter: none;
+  }
   :root{
     --bg:#161610;--surface:#1e1e18;--border:rgba(255,255,255,0.07);--border-hover:rgba(255,255,255,0.14);
     --text:#f0ece4;--text-muted:#8a8478;--text-faint:#4a4840;
