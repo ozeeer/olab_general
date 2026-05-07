@@ -25,15 +25,21 @@
   --coral:#c94f30;--coral-bg:#faeae5;--coral-dark:#7a2a16;
   --slate:#4a5568;--slate-bg:#eef0f3;--slate-dark:#1a202c;
 }
-@media(prefers-color-scheme:dark){
-  :root{
-    --bg:#161610;--surface:#1e1e18;--border:rgba(255,255,255,0.07);--border-hover:rgba(255,255,255,0.14);
-    --text:#f0ece4;--text-muted:#8a8478;--text-faint:#4a4840;
-    --teal-bg:#04342C;--teal-dark:#9FE1CB;--blue-bg:#042C53;--blue-dark:#85B7EB;
-    --amber-bg:#412402;--amber-dark:#FAC775;--coral-bg:#4A1B0C;--coral-dark:#F0997B;
-    --slate-bg:#1a202c;--slate-dark:#cbd5e0;
+
+
+#lab-logo {
+  mix-blend-mode: normal;
+  filter: brightness(0);
+}
+
+@media (prefers-color-scheme: dark) {
+  #lab-logo {
+    mix-blend-mode: screen;
+    filter: none;
   }
 }
+    
+
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 
 /* MAP */
